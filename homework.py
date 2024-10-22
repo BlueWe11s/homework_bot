@@ -6,6 +6,8 @@ import logging
 import time
 from http import HTTPStatus
 import json
+from errors import (UndocumentedStatusError, IncorrectStatusRequest,
+                    IncorrectAPIRequest, MessageSendError)
 
 
 load_dotenv()
@@ -38,32 +40,8 @@ HOMEWORK_VERDICTS = {
 }
 
 
-class EmptyDictionaryError(Exception):
-    """Пустой словарь"""
-
-
-class UndocumentedStatusError(Exception):
-    """Недокументированный статус"""
-
-
-class ApiWrongFormat(Exception):
-    """Полученный API неверного формата"""
-
-
-class IncorrectStatusRequest(Exception):
-    """Статус запроса не 200"""
-
-
-class IncorrectAPIRequest(Exception):
-    """Ошибка при выполнении запроса"""
-
-
-class MessageSendError(Exception):
-    """Ошибка отправки сообщения"""
-
-
 def check_tokens():
-    """Проверка есть ли вся нужная информация"""
+    """Проверка есть ли вся нужная информация."""
     no_tokens = (
         'Программа принудительно остановлена. '
         'Отсутствует обязательная переменная окружения:')
@@ -84,32 +62,34 @@ def check_tokens():
 
 
 def send_message(bot, message):
-    """Отправка сообщения"""
+    """Отправка сообщения."""
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
     except requests.RequestException as error:
+        logger.error('Message send error')
         raise MessageSendError(f'Ошибка отправки сообщения {error}')
     else:
         logger.debug('Message send')
+    finally:
+        return
 
 
 def get_api_answer(timestamp):
-    """Получение ответа от YandexP API"""
+    """Получение ответа от YandexP API."""
     try:
         response = requests.get(ENDPOINT, headers=HEADERS,
-                                         params={'from_date': timestamp})
+                                params={'from_date': timestamp})
         if response.status_code != HTTPStatus.OK:
             raise IncorrectStatusRequest('Статус запроса не 200')
     except requests.RequestException as error:
         raise IncorrectAPIRequest(f'Ошибка при выполнении запроса: {error}')
     except json.JSONDecodeError as error:
         raise ValueError(f'Данные не допустимы {error}')
-
     return response.json()
 
 
 def check_response(response):
-    """Проверка API на правильность"""
+    """Проверка API на правильность."""
     if not isinstance(response, dict):
         raise TypeError('Неверный тип данных,'
                         f'{type(response)}')
@@ -125,7 +105,7 @@ def check_response(response):
 
 
 def parse_status(homework):
-    """Анализ изменения"""
+    """Анализ изменения."""
     status = homework.get('status')
     homework_name = homework.get('homework_name')
     if status is None:
@@ -151,11 +131,15 @@ def main():
     timestamp = int(time.time()) - 500
     check_tokens()
     while True:
-        response = get_api_answer(timestamp)
-        check_response(response)
-        message_text = parse_status(response['homeworks'][0])
-        send_message(bot, message_text)
-        time.sleep(RETRY_PERIOD)
+        try:
+            response = get_api_answer(timestamp)
+            check_response(response)
+            if response['homeworks'][0] == []:
+                logger.debug('Отсутсвует изменение статутса')
+            message_text = parse_status(response['homeworks'][0])
+            send_message(bot, message_text)
+        finally:
+            time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
