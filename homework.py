@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 PRACTICUM_TOKEN = os.getenv("PRACTICUM_TOKEN")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("CHAT_ID")
+const_tokens = ['PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID']
 
 RETRY_PERIOD = 600
 ENDPOINT = "https://practicum.yandex.ru/api/user_api/homework_statuses/"
@@ -42,24 +43,18 @@ HOMEWORK_VERDICTS = {
     "rejected": "Работа проверена: у ревьюера есть замечания.",
 }
 
+NO_TOKENS = (
+    "Программа принудительно остановлена. "
+    "Отсутствует обязательная переменная окружения:"
+)
+
 
 def check_tokens():
     """Проверка есть ли вся нужная информация."""
-    no_tokens = (
-        "Программа принудительно остановлена. "
-        "Отсутствует обязательная переменная окружения:"
-    )
-    if PRACTICUM_TOKEN is None:
-        logger.critical(f"{no_tokens} PRACTICUM_TOKEN")
-        exit()
-    elif TELEGRAM_TOKEN is None:
-        logger.critical(f"{no_tokens} TELEGRAM_TOKEN")
-        exit()
-    elif TELEGRAM_CHAT_ID is None:
-        logger.critical(f"{no_tokens} CHAT_ID")
-        exit()
-    else:
-        return True
+    for token_name in const_tokens:
+        if globals()[token_name] is None:
+            logger.critical(f"{NO_TOKENS} {token_name}")
+            exit()
 
 
 def send_message(bot, message):
@@ -81,12 +76,12 @@ def get_api_answer(timestamp):
         response = requests.get(
             ENDPOINT, headers=HEADERS, params={"from_date": timestamp}
         )
-        if response.status_code != HTTPStatus.OK:
-            raise IncorrectStatusRequest("Статус запроса не 200")
     except requests.RequestException as error:
         raise IncorrectAPIRequest(f"Ошибка при выполнении запроса: {error}")
     except json.JSONDecodeError as error:
         raise ValueError(f"Данные не допустимы {error}")
+    if response.status_code != HTTPStatus.OK:
+        raise IncorrectStatusRequest("Статус запроса не 200")
     return response.json()
 
 
@@ -94,15 +89,11 @@ def check_response(response):
     """Проверка API на правильность."""
     if not isinstance(response, dict):
         raise TypeError("Неверный тип данных," f"{type(response)}")
-    elif "homeworks" not in response:
+    if "homeworks" not in response:
         raise KeyError("В ответе API отсутствует ключ homeworks")
-    elif not isinstance(response["homeworks"], list):
+    if not isinstance(response["homeworks"], list):
         raise TypeError("Неверный тип данных по ключу homeworks,"
                         f"{type(response)}")
-    elif not isinstance(response["current_date"], int):
-        raise TypeError(
-            "Неверный тип данных по ключу current_date," f"{type(response)}"
-        )
     return response.get("homeworks")
 
 
