@@ -97,7 +97,8 @@ def check_response(response):
     elif "homeworks" not in response:
         raise KeyError("В ответе API отсутствует ключ homeworks")
     elif not isinstance(response["homeworks"], list):
-        raise TypeError("Неверный тип данных по ключу homeworks," f"{type(response)}")
+        raise TypeError("Неверный тип данных по ключу homeworks,"
+                        f"{type(response)}")
     elif not isinstance(response["current_date"], int):
         raise TypeError(
             "Неверный тип данных по ключу current_date," f"{type(response)}"
