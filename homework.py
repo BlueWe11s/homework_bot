@@ -19,9 +19,6 @@ logging.basicConfig(
     format='%(asctime)s, %(levelname)s, %(message)s, %(name)s',
 )
 logger = logging.getLogger(__name__)
-logger.addHandler(
-    logging.StreamHandler()
-)
 
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
@@ -65,7 +62,7 @@ def send_message(bot, message):
     """Отправка сообщения."""
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-    except requests.RequestException as error:
+    except Exception as error:
         logger.error('Message send error')
         raise MessageSendError(f'Ошибка отправки сообщения {error}')
     else:
@@ -129,6 +126,7 @@ def main():
     """Основная логика работы бота."""
     bot = TeleBot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time()) - 500
+    last_message = None
     check_tokens()
     while True:
         try:
@@ -138,6 +136,12 @@ def main():
                 logger.debug('Отсутсвует изменение статутса')
             message_text = parse_status(response['homeworks'][0])
             send_message(bot, message_text)
+        except Exception as error:
+            message = f'{error}'
+            if last_message != message:
+                send_message(bot, message)
+                last_message = message
+            logger.error(message)
         finally:
             time.sleep(RETRY_PERIOD)
 
