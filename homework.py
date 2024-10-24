@@ -14,6 +14,7 @@ from errors import (
     IncorrectAPIRequest,
     MessageSendError,
 )
+from text_errors import NO_TOKENS, MESSAGE_SEND_ERROR
 
 
 load_dotenv()
@@ -48,17 +49,12 @@ HOMEWORK_VERDICTS = {
     "rejected": "Работа проверена: у ревьюера есть замечания.",
 }
 
-NO_TOKENS = (
-    "Программа принудительно остановлена. "
-    "Отсутствует обязательная переменная окружения:"
-)
-
 
 def check_tokens():
     """Проверка есть ли вся нужная информация."""
     for token_name in const_tokens:
         if globals()[token_name] is None:
-            logger.critical(f"{NO_TOKENS} {token_name}")
+            logger.critical(NO_TOKENS.format(token=token_name))
             exit()
 
 
@@ -67,8 +63,8 @@ def send_message(bot, message):
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
     except Exception as error:
-        logger.error("Message send error")
-        raise MessageSendError(f"Ошибка отправки сообщения {error}")
+        logger.error(MESSAGE_SEND_ERROR.format(error=error))
+        raise MessageSendError(MESSAGE_SEND_ERROR.format(error=error))
     else:
         logger.debug("Message send")
     finally:
