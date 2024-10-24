@@ -31,6 +31,11 @@ PRACTICUM_TOKEN = os.getenv("PRACTICUM_TOKEN")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("CHAT_ID")
 const_tokens = ['PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID']
+TOKENS = [
+    PRACTICUM_TOKEN,
+    TELEGRAM_TOKEN,
+    TELEGRAM_CHAT_ID
+]
 
 RETRY_PERIOD = 600
 ENDPOINT = "https://practicum.yandex.ru/api/user_api/homework_statuses/"
@@ -78,11 +83,13 @@ def get_api_answer(timestamp):
         )
     except requests.RequestException as error:
         raise IncorrectAPIRequest(f"Ошибка при выполнении запроса: {error}")
+    try:
+        request = response.json()
     except json.JSONDecodeError as error:
         raise ValueError(f"Данные не допустимы {error}")
     if response.status_code != HTTPStatus.OK:
         raise IncorrectStatusRequest("Статус запроса не 200")
-    return response.json()
+    return request
 
 
 def check_response(response):
@@ -130,16 +137,14 @@ def main():
         try:
             response = get_api_answer(timestamp)
             check_response(response)
-            if response["homeworks"][0] == []:
+            if response["homeworks"][0] == [last_message]:
                 logger.debug("Отсутсвует изменение статутса")
             message_text = parse_status(response["homeworks"][0])
+            last_message = message_text
             send_message(bot, message_text)
         except Exception as error:
-            message = f"{error}"
-            if last_message != message:
-                send_message(bot, message)
-                last_message = message
-            logger.error(message)
+            send_message(bot, f"{error}")
+            logger.error(f"{error}")
         finally:
             time.sleep(RETRY_PERIOD)
 
