@@ -1,17 +1,16 @@
 from dotenv import load_dotenv
 from http import HTTPStatus
+import pyramid.httpexceptions as exc
 import json
 import logging
 import os
 import requests
 from telebot import TeleBot
+import telegram
 import time
 
 
 from errors import (
-    UndocumentedStatusError,
-    IncorrectStatusRequest,
-    IncorrectAPIRequest,
     MessageSendError,
 )
 from text_errors import NO_TOKENS, MESSAGE_SEND_ERROR
@@ -62,7 +61,7 @@ def send_message(bot, message):
     """Отправка сообщения."""
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-    except Exception as error:
+    except telegram.TelegramError as error:
         logger.error(MESSAGE_SEND_ERROR.format(error=error))
         raise MessageSendError(MESSAGE_SEND_ERROR.format(error=error))
     else:
@@ -78,13 +77,13 @@ def get_api_answer(timestamp):
             ENDPOINT, headers=HEADERS, params={"from_date": timestamp}
         )
     except requests.RequestException as error:
-        raise IncorrectAPIRequest(f"Ошибка при выполнении запроса: {error}")
+        raise exc.HTTPClientError(f"Ошибка при выполнении запроса: {error}")
     try:
         request = response.json()
     except json.JSONDecodeError as error:
         raise ValueError(f"Данные не допустимы {error}")
     if response.status_code != HTTPStatus.OK:
-        raise IncorrectStatusRequest("Статус запроса не 200")
+        raise ValueError("Статус запроса не 200")
     return request
 
 
@@ -107,15 +106,15 @@ def parse_status(homework):
     if status is None:
         code_api = f"Ошибка пустое значение status: {status}"
         logger.error(code_api)
-        raise UndocumentedStatusError(code_api)
+        raise ValueError(code_api)
     elif homework_name is None:
         code_api = f"Ошибка пустое значение homework_name: {homework_name}"
         logger.error(code_api)
-        raise UndocumentedStatusError(code_api)
+        raise ValueError(code_api)
     elif status not in HOMEWORK_VERDICTS:
         code_api = f"Ошибка невозможное значение status: {status}"
         logger.error(code_api)
-        raise UndocumentedStatusError(code_api)
+        raise ValueError(code_api)
     verdict = HOMEWORK_VERDICTS[homework["status"]]
     return (
         "Изменился статус проверки работы "
