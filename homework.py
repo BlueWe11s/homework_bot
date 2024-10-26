@@ -6,7 +6,6 @@ import logging
 import os
 import requests
 from telebot import TeleBot
-import telegram
 import time
 
 
