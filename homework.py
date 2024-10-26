@@ -104,15 +104,12 @@ def parse_status(homework):
     homework_name = homework.get("homework_name")
     if status is None:
         code_api = f"Ошибка пустое значение status: {status}"
-        logger.error(code_api)
         raise ValueError(code_api)
     elif homework_name is None:
         code_api = f"Ошибка пустое значение homework_name: {homework_name}"
-        logger.error(code_api)
         raise ValueError(code_api)
     elif status not in HOMEWORK_VERDICTS:
         code_api = f"Ошибка невозможное значение status: {status}"
-        logger.error(code_api)
         raise ValueError(code_api)
     verdict = HOMEWORK_VERDICTS[homework["status"]]
     return (
