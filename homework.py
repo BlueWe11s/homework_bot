@@ -1,17 +1,14 @@
 from dotenv import load_dotenv
 from http import HTTPStatus
-import pyramid.httpexceptions as exc
 import json
 import logging
 import os
 import requests
 from telebot import TeleBot
+from telebot.apihelper import ApiException
 import time
 
 
-from errors import (
-    MessageSendError,
-)
 from text_errors import NO_TOKENS, MESSAGE_SEND_ERROR
 
 
@@ -60,9 +57,9 @@ def send_message(bot, message):
     """Отправка сообщения."""
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-    except Exception as error:
+    except ApiException as error:
         logger.error(MESSAGE_SEND_ERROR.format(error=error))
-        raise MessageSendError(MESSAGE_SEND_ERROR.format(error=error))
+        raise ConnectionError(MESSAGE_SEND_ERROR.format(error=error))
     else:
         logger.debug("Message send")
     finally:
@@ -76,7 +73,7 @@ def get_api_answer(timestamp):
             ENDPOINT, headers=HEADERS, params={"from_date": timestamp}
         )
     except requests.RequestException as error:
-        raise exc.HTTPClientError(f"Ошибка при выполнении запроса: {error}")
+        raise ConnectionError(f"Ошибка при выполнении запроса: {error}")
     try:
         request = response.json()
     except json.JSONDecodeError as error:
